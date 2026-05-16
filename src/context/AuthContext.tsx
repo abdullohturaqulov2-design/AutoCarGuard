@@ -1,11 +1,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { db, User } from '../utils/db';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  phone?: string;
+  carModel?: string;
+  carPlate?: string;
+}
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (user: User) => void;
+  login: (userData: User) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -17,27 +26,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = db.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
+    // LocalStorage dan user ma'lumotlarini olish
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
     setIsLoading(false);
   }, []);
 
   const login = (userData: User) => {
-    db.setCurrentUser(userData.id);
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
-    db.clearCurrentUser();
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   const updateUser = (updates: Partial<User>) => {
     if (!user) return;
-    const updated = db.updateUser(user.id, updates);
-    if (updated) setUser(updated);
+    const updatedUser = { ...user, ...updates };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
   };
 
   return (
@@ -55,7 +66,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
