@@ -1,6 +1,3 @@
-// AutoGuard - Local Database (db.file simulator using localStorage)
-// Bu fayl db.file o'rnida ishlatiladi - barcha ma'lumotlar shu yerda saqlanadi
-
 const DB_NAME = 'autoguard.db';
 
 export interface User {
@@ -8,11 +5,14 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  password?: string;
   avatar?: string;
-  authMethod: 'google' | 'apple' | 'phone';
+  authMethod: 'google' | 'apple' | 'phone' | 'email';
   jshirOrPassport?: string;
   faceVerified: boolean;
   faceData?: string;
+  carModel?: string;
+  carPlate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,7 +107,6 @@ export interface KnownFace {
   seenCount: number;
 }
 
-// DB Helper functions
 class AutoGuardDB {
   private prefix: string;
 
@@ -139,22 +138,22 @@ class AutoGuardDB {
   }
 
   generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
-  // Users
+  // ─── Users ───────────────────────────────────────────────
   getUsers(): User[] { return this.getData<User>('users'); }
   getUserById(id: string): User | undefined { return this.getUsers().find(u => u.id === id); }
   getUserByEmail(email: string): User | undefined { return this.getUsers().find(u => u.email === email); }
   getUserByPhone(phone: string): User | undefined { return this.getUsers().find(u => u.phone === phone); }
   getUserByJshir(jshir: string): User | undefined { return this.getUsers().find(u => u.jshirOrPassport === jshir); }
-  
+
   createUser(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
     const newUser: User = {
       ...user,
       id: this.generateId(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
     const users = this.getUsers();
     users.push(newUser);
@@ -171,7 +170,7 @@ class AutoGuardDB {
     return users[idx];
   }
 
-  // Vehicles
+  // ─── Vehicles ─────────────────────────────────────────────
   getVehicles(): Vehicle[] { return this.getData<Vehicle>('vehicles'); }
   getVehiclesByUserId(userId: string): Vehicle[] { return this.getVehicles().filter(v => v.userId === userId); }
   getVehicleById(id: string): Vehicle | undefined { return this.getVehicles().find(v => v.id === id); }
@@ -180,7 +179,7 @@ class AutoGuardDB {
     const newVehicle: Vehicle = {
       ...vehicle,
       id: this.generateId(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
     const vehicles = this.getVehicles();
     vehicles.push(newVehicle);
@@ -203,7 +202,7 @@ class AutoGuardDB {
     return true;
   }
 
-  // Trips
+  // ─── Trips ────────────────────────────────────────────────
   getTrips(): TripSession[] { return this.getData<TripSession>('trips'); }
   getTripsByVehicleId(vehicleId: string): TripSession[] { return this.getTrips().filter(t => t.vehicleId === vehicleId); }
   getActiveTripByVehicleId(vehicleId: string): TripSession | undefined {
@@ -227,7 +226,7 @@ class AutoGuardDB {
     return trips[idx];
   }
 
-  // Alerts
+  // ─── Alerts ───────────────────────────────────────────────
   getAlerts(): Alert[] { return this.getData<Alert>('alerts'); }
   getAlertsByUserId(userId: string): Alert[] { return this.getAlerts().filter(a => a.userId === userId); }
   getUnresolvedAlerts(userId: string): Alert[] { return this.getAlertsByUserId(userId).filter(a => !a.resolved); }
@@ -236,7 +235,7 @@ class AutoGuardDB {
     const newAlert: Alert = {
       ...alert,
       id: this.generateId(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     const alerts = this.getAlerts();
     alerts.push(newAlert);
@@ -253,7 +252,7 @@ class AutoGuardDB {
     return alerts[idx];
   }
 
-  // Known Faces
+  // ─── Known Faces ──────────────────────────────────────────
   getKnownFaces(): KnownFace[] { return this.getData<KnownFace>('faces'); }
   getKnownFacesByUserId(userId: string): KnownFace[] { return this.getKnownFaces().filter(f => f.userId === userId); }
 
@@ -274,22 +273,32 @@ class AutoGuardDB {
     return faces[idx];
   }
 
-  // Settings
+  // ─── Settings ─────────────────────────────────────────────
   getSettings(): Settings[] { return this.getData<Settings>('settings'); }
   getSettingsByUserId(userId: string): Settings | undefined { return this.getSettings().find(s => s.userId === userId); }
 
   saveSettings(settings: Settings): void {
     const allSettings = this.getSettings();
     const idx = allSettings.findIndex(s => s.userId === settings.userId);
-    if (idx === -1) {
-      allSettings.push(settings);
-    } else {
-      allSettings[idx] = settings;
-    }
+    if (idx === -1) allSettings.push(settings);
+    else allSettings[idx] = settings;
     this.setData('settings', allSettings);
   }
 
-  // Persons
+  getDefaultSettings(userId: string): Settings {
+    return {
+      userId,
+      cameraQuality: '1080p',
+      gpsEnabled: true,
+      microphoneEnabled: true,
+      videoSaveEnabled: false,
+      notificationsEnabled: true,
+      autoCallPolice: false,
+      locationUpdateInterval: 10,
+    };
+  }
+
+  // ─── Persons ──────────────────────────────────────────────
   getPersons(): Person[] { return this.getData<Person>('persons'); }
   getPersonsBySessionId(sessionId: string): Person[] { return this.getPersons().filter(p => p.sessionId === sessionId); }
 
@@ -301,7 +310,7 @@ class AutoGuardDB {
     return newPerson;
   }
 
-  // Current User Session
+  // ─── Session ──────────────────────────────────────────────
   getCurrentUser(): User | null {
     const userId = sessionStorage.getItem(`${this.prefix}:currentUser`);
     if (!userId) return null;
@@ -316,18 +325,19 @@ class AutoGuardDB {
     sessionStorage.removeItem(`${this.prefix}:currentUser`);
   }
 
-  // Statistics
+  // ─── Statistics ───────────────────────────────────────────
   getStats(userId: string) {
     const vehicles = this.getVehiclesByUserId(userId);
     const alerts = this.getAlertsByUserId(userId);
     const trips = vehicles.flatMap(v => this.getTripsByVehicleId(v.id));
+    const totalKm = trips.reduce((sum, t) => sum + t.route.length * 0.1, 0);
     return {
       totalVehicles: vehicles.length,
       activeVehicles: vehicles.filter(v => v.status === 'active').length,
       totalAlerts: alerts.length,
       unresolvedAlerts: alerts.filter(a => !a.resolved).length,
       totalTrips: trips.length,
-      totalDistance: (trips.length * 15.3).toFixed(1)
+      totalDistance: totalKm.toFixed(1),
     };
   }
 }
