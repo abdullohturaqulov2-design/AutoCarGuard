@@ -6,8 +6,20 @@ export interface User {
   email: string;
   avatar?: string;
   phone?: string;
+  // Pasport / JSHSHR
+  jshshr?: string;
+  passportSeries?: string;
+  faceVerified: boolean;
+  // Mashina (pasport bazasidan avtomatik keladi)
   carModel?: string;
   carPlate?: string;
+  carBrand?: string;
+  carYear?: number;
+  carColor?: string;
+  // Himoya holati
+  hasCarCamera?: boolean;
+  hasCarGPS?: boolean;
+  hasCarBlocker?: boolean;
 }
 
 interface AuthContextType {
@@ -20,8 +32,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Barcha fayllarda bir xil kalit ishlatiladi
 const SESSION_KEY = 'autoguard_session';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -29,13 +39,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem(SESSION_KEY);
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem(SESSION_KEY);
-      }
+    const saved = localStorage.getItem(SESSION_KEY);
+    if (saved) {
+      try { setUser(JSON.parse(saved)); }
+      catch { localStorage.removeItem(SESSION_KEY); }
     }
     setIsLoading(false);
   }, []);
@@ -60,7 +67,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 text-sm">Yuklanmoqda...</p>
+        </div>
       </div>
     );
   }
