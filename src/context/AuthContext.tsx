@@ -21,45 +21,52 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Barcha fayllarda bir xil kalit ishlatiladi
+const SESSION_KEY = 'autoguard_session';
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // LocalStorage dan user ma'lumotlarini olish
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem(SESSION_KEY);
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = (userData: User) => {
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
+    localStorage.removeItem(SESSION_KEY);
     setUser(null);
   };
 
   const updateUser = (updates: Partial<User>) => {
     if (!user) return;
-    const updatedUser = { ...user, ...updates };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
+    const updated = { ...user, ...updates };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+    setUser(updated);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      isLoading,
-      isAuthenticated: !!user,
-      login,
-      logout,
-      updateUser
-    }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -67,8 +74,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
